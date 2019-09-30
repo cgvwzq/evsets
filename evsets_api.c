@@ -14,7 +14,7 @@
 	#include <mach/vm_statistics.h>
 #endif
 
-#include "run.h"
+#include "evsets_api.h"
 #include "list_utils.h"
 #include "hist_utils.h"
 #include "utils.h"
@@ -24,10 +24,10 @@
 
 #define MAX_REPS 50
 
-int real_run(struct config *conf);
+int real_find_evsets(struct config *conf);
 
 int
-run(struct config *conf)
+find_evsets(struct config *conf)
 {
 	int res;
 
@@ -38,7 +38,7 @@ run(struct config *conf)
 	}
 #endif /* THREAD_COUNTER */
 
-	res = real_run(conf);
+	res = real_find_evsets(conf);
 
 #ifdef THREAD_COUNTER
 	destroy_counter ();
@@ -48,7 +48,7 @@ run(struct config *conf)
 }
 
 int
-real_run(struct config *conf)
+real_find_evsets(struct config *conf)
 {
     char *victim = NULL;
 	char *addr = NULL;

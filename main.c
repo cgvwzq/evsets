@@ -16,7 +16,7 @@
 #endif
 
 #include "cache.h"
-#include "run.h"
+#include "evsets_api.h"
 
 struct config conf = {
 	.rounds = 200,
@@ -197,5 +197,5 @@ main(int argc, char **argv)
 		}
 	}
 
-	return run (&conf);
+	return find_evsets (&conf);
 }
