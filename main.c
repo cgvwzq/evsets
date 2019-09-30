@@ -81,13 +81,6 @@ main(int argc, char **argv)
 {
 	int option = 0, option_index = 0;
 
-#ifdef THREAD_COUNTER
-    if (create_counter ())
-    {
-        return 1;
-    }
-#endif /* THREAD_COUNTER */
-
 	static struct option long_options[] =
 	{
 		{"nohugepages",		no_argument, &conf.no_huge_pages, 1},
@@ -204,11 +197,5 @@ main(int argc, char **argv)
 		}
 	}
 
-	run (&conf);
-
-#ifdef THREAD_COUNTER
-    destroy_counter ();
-#endif /* THREAD_COUNTER */
-
-	return 0;
+	return run (&conf);
 }

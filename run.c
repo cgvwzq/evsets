@@ -24,8 +24,31 @@
 
 #define MAX_REPS 50
 
+int real_run(struct config *conf);
+
 int
 run(struct config *conf)
+{
+	int res;
+
+#ifdef THREAD_COUNTER
+	if (create_counter ())
+	{
+		return 1;
+	}
+#endif /* THREAD_COUNTER */
+
+	res = real_run(conf);
+
+#ifdef THREAD_COUNTER
+	destroy_counter ();
+#endif /* THREAD_COUNTER */
+
+	return res;
+}
+
+int
+real_run(struct config *conf)
 {
     char *victim = NULL;
 	char *addr = NULL;
