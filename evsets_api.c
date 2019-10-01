@@ -24,12 +24,17 @@
 
 #define MAX_REPS 50
 
-int real_find_evsets(struct config *conf);
+struct config conf;
+
+int real_find_evsets();
 
 int
-find_evsets(struct config *conf)
+find_evsets(struct config *conf_ptr)
 {
 	int res;
+
+  // save config
+  memcpy(&conf, conf_ptr, sizeof(struct config));
 
 #ifdef THREAD_COUNTER
 	if (create_counter ())
@@ -38,7 +43,7 @@ find_evsets(struct config *conf)
 	}
 #endif /* THREAD_COUNTER */
 
-	res = real_find_evsets(conf);
+	res = real_find_evsets();
 
 #ifdef THREAD_COUNTER
 	destroy_counter ();
@@ -48,20 +53,20 @@ find_evsets(struct config *conf)
 }
 
 int
-real_find_evsets(struct config *conf)
+real_find_evsets()
 {
     char *victim = NULL;
 	char *addr = NULL;
 	char *probe = NULL;
 	char *pool = NULL;
-	ul sz = conf->buffer_size * conf->stride;
+	ul sz = conf.buffer_size * conf.stride;
 	ul pool_sz = 128 << 20;
 	if (sz > pool_sz)
 	{
 		printf("[!] Error: not enough space\n");
 		return 1;
 	}
-	if (conf->no_huge_pages)
+	if (conf.no_huge_pages)
 	{
 		pool = (char*) mmap (NULL, pool_sz, PROT_READ|PROT_WRITE,
 						MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
@@ -91,15 +96,15 @@ real_find_evsets(struct config *conf)
 		return 1;
 	}
 
-	Elem *ptr = (Elem*)&pool[conf->offset << 6];
+	Elem *ptr = (Elem*)&pool[conf.offset << 6];
 	Elem *can = NULL;
-	victim = &probe[conf->offset << 6];
+	victim = &probe[conf.offset << 6];
 	*victim = 0; // touch line
 
 	printf ("[+] %llu MB buffer allocated at %p (%llu blocks)\n",
 			sz >> 20, (void*)ptr, sz/sizeof(Elem));
 
-	if (conf->stride < 64 || conf->stride % 64 != 0)
+	if (conf.stride < 64 || conf.stride % 64 != 0)
 	{
 		printf("[!] Error: invalid stride\n");
 		goto err;
@@ -109,49 +114,49 @@ real_find_evsets(struct config *conf)
 	srand (seed);
 
 	// Set eviction strategy
-	switch (conf->strategy)
+	switch (conf.strategy)
 	{
 		case 0:
-			conf->traverse = &traverse_list_haswell;
+			conf.traverse = &traverse_list_haswell;
 			break;
 		case 1:
-			conf->traverse = &traverse_list_skylake;
+			conf.traverse = &traverse_list_skylake;
 			break;
 		case 3:
-			conf->traverse = &traverse_list_asm_skylake;
+			conf.traverse = &traverse_list_asm_skylake;
 			break;
 		case 4:
-			conf->traverse = &traverse_list_asm_haswell;
+			conf.traverse = &traverse_list_asm_haswell;
 			break;
 		case 5:
-			conf->traverse = &traverse_list_asm_simple;
+			conf.traverse = &traverse_list_asm_simple;
 			break;
 		case 10:
-			conf->traverse = &traverse_list_rrip;
+			conf.traverse = &traverse_list_rrip;
 			break;
 		case 2:
 		default:
-			conf->traverse = &traverse_list_simple;
+			conf.traverse = &traverse_list_simple;
 			break;
 	}
 
-	if (conf->calibrate)
+	if (conf.calibrate)
 	{
-		conf->threshold = calibrate (victim, conf);
-		printf("[+] Calibrated Threshold = %d\n", conf->threshold);
+		conf.threshold = calibrate (victim, &conf);
+		printf("[+] Calibrated Threshold = %d\n", conf.threshold);
 	}
 	else
 	{
-		printf("[+] Default Threshold = %d\n", conf->threshold);
+		printf("[+] Default Threshold = %d\n", conf.threshold);
 	}
 
-	if (conf->threshold < 0)
+	if (conf.threshold < 0)
 	{
 		printf("[!] Error: calibration\n");
 		return 1;
 	}
 
-	if (conf->algorithm == ALGORITHM_LINEAR)
+	if (conf.algorithm == ALGORITHM_LINEAR)
 	{
 		victim = NULL;
 	}
@@ -161,18 +166,18 @@ real_find_evsets(struct config *conf)
 	tts = clock();
 	pick:
 
-	ptr = (Elem*)&pool[conf->offset << 6];
-	initialize_list (ptr, pool_sz, conf->offset);
+	ptr = (Elem*)&pool[conf.offset << 6];
+	initialize_list (ptr, pool_sz, conf.offset);
 
 	// Conflict set incompatible with ANY case (don't needed)
-	if (conf->conflictset && (conf->algorithm != ALGORITHM_LINEAR))
+	if (conf.conflictset && (conf.algorithm != ALGORITHM_LINEAR))
 	{
-		pick_n_random_from_list (ptr, conf->stride, pool_sz, conf->offset, conf->buffer_size);
+		pick_n_random_from_list (ptr, conf.stride, pool_sz, conf.offset, conf.buffer_size);
 		generate_conflict_set (&ptr, &can);
 		printf ("[+] Compute conflict set: %d\n", list_length (can));
 		victim = (char*)ptr;
 		ptr = can; // new conflict set
-		while (victim && !tests (ptr, victim, conf->rounds, conf->threshold, conf->ratio, conf->traverse))
+		while (victim && !tests (ptr, victim, conf.rounds, conf.threshold, conf.ratio, conf.traverse))
 		{
 			victim = (char*)(((Elem*)victim)->next);
 		}
@@ -180,8 +185,8 @@ real_find_evsets(struct config *conf)
 	}
 	else
 	{
-		pick_n_random_from_list (ptr, conf->stride, pool_sz, conf->offset, conf->buffer_size);
-		if (list_length (ptr) != conf->buffer_size)
+		pick_n_random_from_list (ptr, conf.stride, pool_sz, conf.offset, conf.buffer_size);
+		if (list_length (ptr) != conf.buffer_size)
 		{
 			printf("[!] Error: broken list\n");
 			goto err;
@@ -189,35 +194,35 @@ real_find_evsets(struct config *conf)
 	}
 
 	int ret = 0;
-	if (conf->debug)
+	if (conf.debug)
 	{
-		conf->verify = true;
-		conf->findallcolors = false;
-		conf->findallcongruent = false;
-		printf ("[+] Filter: %d congruent, %d non-congruent addresses\n", conf->con, conf->noncon);
-		ret = filter (&ptr, victim, conf->con, conf->noncon, conf);
-		if (ret && !conf->retry)
+		conf.verify = true;
+		conf.findallcolors = false;
+		conf.findallcongruent = false;
+		printf ("[+] Filter: %d congruent, %d non-congruent addresses\n", conf.con, conf.noncon);
+		ret = filter (&ptr, victim, conf.con, conf.noncon, &conf);
+		if (ret && !conf.retry)
 		{
 			goto err;
 		}
 	}
 
-	if (conf->algorithm == ALGORITHM_LINEAR)
+	if (conf.algorithm == ALGORITHM_LINEAR)
 	{
-		ret = test_and_time (ptr, conf->rounds, conf->threshold, conf->cache_way, conf->traverse);
+		ret = test_and_time (ptr, conf.rounds, conf.threshold, conf.cache_way, conf.traverse);
 	}
 	else if (victim)
 	{
-        if (conf->ratio > 0.0)
+        if (conf.ratio > 0.0)
         {
-            ret = tests (ptr, victim, conf->rounds, conf->threshold, conf->ratio, conf->traverse);
+            ret = tests (ptr, victim, conf.rounds, conf.threshold, conf.ratio, conf.traverse);
         }
         else
         {
-            ret = tests_avg (ptr, victim, conf->rounds, conf->threshold, conf->traverse);
+            ret = tests_avg (ptr, victim, conf.rounds, conf.threshold, conf.traverse);
         }
 	}
-	if ((victim || conf->algorithm == ALGORITHM_LINEAR) && ret)
+	if ((victim || conf.algorithm == ALGORITHM_LINEAR) && ret)
 	{
 		printf("[+] Initial candidate set evicted victim\n");
 		// rep = 0;
@@ -225,7 +230,7 @@ real_find_evsets(struct config *conf)
 	else
 	{
 		printf ("[!] Error: invalid candidate set\n");
-		if (conf->retry && rep < MAX_REPS)
+		if (conf.retry && rep < MAX_REPS)
 		{
 			rep++;
 			goto pick;
@@ -234,16 +239,16 @@ real_find_evsets(struct config *conf)
 		{
 			printf ("[!] Error: exceeded max repetitions\n");
 		}
-		if (conf->verify)
+		if (conf.verify)
 		{
-			recheck (ptr, victim, true, conf);
+			recheck (ptr, victim, true, &conf);
 		}
 		goto err;
 	}
 
 	clock_t ts, te;
 
-	int len = 0, colors = conf->cache_size / conf->cache_way / conf->stride;
+	int len = 0, colors = conf.cache_size / conf.cache_way / conf.stride;
 	Elem **result = calloc (colors, sizeof(Elem*));
 	if (!result)
 	{
@@ -252,7 +257,7 @@ real_find_evsets(struct config *conf)
 	}
 
 	int id = 0;
-	// Iterate over all colors of conf->offset
+	// Iterate over all colors of conf.offset
 	do
 	{
 
@@ -260,7 +265,7 @@ real_find_evsets(struct config *conf)
 			list_length (ptr));
 
 	// Search
-	switch (conf->algorithm)
+	switch (conf.algorithm)
 	{
 		case ALGORITHM_NAIVE:
 			printf("[+] Starting naive reduction...\n");
@@ -307,7 +312,7 @@ real_find_evsets(struct config *conf)
 		printf("[+] Total execution time: %f seconds\n", ((double)(tte-tts))/CLOCKS_PER_SEC);
 
 		// Re-Check that it's an optimal eviction set
-		if (conf->algorithm != ALGORITHM_LINEAR)
+		if (conf.algorithm != ALGORITHM_LINEAR)
 		{
 			printf("[+] (ID=%d) Found minimal eviction set for %p (length=%d): ",
 				id, (void*)victim, len);
@@ -321,19 +326,19 @@ real_find_evsets(struct config *conf)
 		result[id] = ptr;
 	}
 
-	if (conf->verify)
+	if (conf.verify)
 	{
-		recheck(ptr, victim, ret, conf);
+		recheck(ptr, victim, ret, &conf);
 	}
 
-	if (ret && conf->retry)
+	if (ret && conf.retry)
 	{
 		if (rep < MAX_REPS)
 		{
 			list_concat (&ptr, can);
 			can = NULL;
 			rep++;
-			if (!conf->conflictset && !conf->findallcolors)
+			if (!conf.conflictset && !conf.findallcolors)
 			{
 				// select a new initial set
 				printf ("[!] Error: repeat, pick a new set\n");
@@ -365,20 +370,20 @@ real_find_evsets(struct config *conf)
 	// Remove rest of congruent elements
 	list_set_id (result[id], id);
 	ptr = can;
-	if (conf->findallcongruent)
+	if (conf.findallcongruent)
 	{
 		Elem *e = NULL, *head = NULL, *done = NULL, *tmp = NULL;
 		int count = 0, t = 0;
 		while (ptr)
 		{
 			e = list_pop(&ptr);
-			if (conf->ratio > 0.0)
+			if (conf.ratio > 0.0)
 			{
-				t = tests (result[id], (char*)e, conf->rounds, conf->threshold, conf->ratio, conf->traverse);
+				t = tests (result[id], (char*)e, conf.rounds, conf.threshold, conf.ratio, conf.traverse);
 			}
 			else
 			{
-				t = tests_avg (result[id], (char*)e, conf->rounds, conf->threshold, conf->traverse);
+				t = tests_avg (result[id], (char*)e, conf.rounds, conf.threshold, conf.traverse);
 			}
 			if (t)
 			{
@@ -401,15 +406,15 @@ real_find_evsets(struct config *conf)
 		ptr = done;
 	}
 
-	if (!conf->findallcolors)
+	if (!conf.findallcolors)
 	{
 		break;
 	}
 	printf ("----------------------\n");
 	id = id + 1;
 	if (id == colors || !ptr ||
-			(conf->conflictset && !victim) ||
-			(!conf->conflictset && victim >= probe + pool_sz - conf->stride))
+			(conf.conflictset && !victim) ||
+			(!conf.conflictset && victim >= probe + pool_sz - conf.stride))
 	{
 		printf ("[+] Found all eviction sets in buffer\n");
 		break;
@@ -417,14 +422,14 @@ real_find_evsets(struct config *conf)
 
 	next:
 	// Find victim for different color. Only for specific algorithms.
-	if (conf->algorithm != ALGORITHM_LINEAR)
+	if (conf.algorithm != ALGORITHM_LINEAR)
 	{
 		int s = 0, ret = 0, ret2 = 0;
 		do
 		{
-			if (!conf->conflictset)
+			if (!conf.conflictset)
 			{
-				victim += conf->stride;
+				victim += conf.stride;
 				*victim = 0;
 			}
 			else
@@ -433,8 +438,8 @@ real_find_evsets(struct config *conf)
 			}
 
 			// Check again. Better reorganize this mess.
-			if ((conf->conflictset && !victim) ||
-				(!conf->conflictset && victim >= probe + pool_sz - conf->stride))
+			if ((conf.conflictset && !victim) ||
+				(!conf.conflictset && victim >= probe + pool_sz - conf.stride))
 			{
 				break;
 			}
@@ -442,30 +447,30 @@ real_find_evsets(struct config *conf)
 			// New victim is not evicted by previous eviction sets
 			for (ret = 0, s = 0; s < id && !ret; s++)
 			{
-				if (conf->ratio > 0.0)
+				if (conf.ratio > 0.0)
 				{
-					ret = tests (result[s], victim, conf->rounds, conf->threshold, conf->ratio, conf->traverse);
+					ret = tests (result[s], victim, conf.rounds, conf.threshold, conf.ratio, conf.traverse);
 				}
 				else
 				{
-					ret = tests_avg (result[s], victim, conf->rounds, conf->threshold, conf->traverse);
+					ret = tests_avg (result[s], victim, conf.rounds, conf.threshold, conf.traverse);
 				}
 			}
 			if (!ret)
 			{
 				// Rest of initial eviction set can evict victim
-				if (conf->ratio > 0.0)
+				if (conf.ratio > 0.0)
 				{
-					ret2 = tests (ptr, victim, conf->rounds, conf->threshold, conf->ratio, conf->traverse);
+					ret2 = tests (ptr, victim, conf.rounds, conf.threshold, conf.ratio, conf.traverse);
 				}
 				else
 				{
-					ret2 = tests_avg (ptr, victim, conf->rounds, conf->threshold, conf->traverse);
+					ret2 = tests_avg (ptr, victim, conf.rounds, conf.threshold, conf.traverse);
 				}
 			}
 		}
-		while ((list_length (ptr) > conf->cache_way) && !ret2 && ((conf->conflictset && victim) ||
-				(!conf->conflictset && (victim < (probe + pool_sz - conf->stride)))));
+		while ((list_length (ptr) > conf.cache_way) && !ret2 && ((conf.conflictset && victim) ||
+				(!conf.conflictset && (victim < (probe + pool_sz - conf.stride)))));
 
 		if (ret2)
 		{
@@ -481,7 +486,7 @@ real_find_evsets(struct config *conf)
 	can = NULL;
 
 	}
-	while ((conf->findallcolors && id < colors) || (conf->retry && rep < MAX_REPS));
+	while ((conf.findallcolors && id < colors) || (conf.retry && rep < MAX_REPS));
 
 	// Free
 	free (result);
