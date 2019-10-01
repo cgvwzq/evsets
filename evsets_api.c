@@ -26,6 +26,8 @@
 
 struct config conf;
 
+static Elem **evsets = NULL;
+
 int real_find_evsets();
 
 int
@@ -249,8 +251,8 @@ real_find_evsets()
 	clock_t ts, te;
 
 	int len = 0, colors = conf.cache_size / conf.cache_way / conf.stride;
-	Elem **result = calloc (colors, sizeof(Elem*));
-	if (!result)
+	evsets = calloc (colors, sizeof(Elem*));
+	if (!evsets)
 	{
 		printf("[!] Error: allocate\n");
 		goto err;
@@ -323,7 +325,7 @@ real_find_evsets()
 			printf("[+] (ID=%d) Found a minimal eviction set (length=%d): ", id, len);
 			print_list (ptr);
 		}
-		result[id] = ptr;
+		evsets[id] = ptr;
 	}
 
 	if (conf.verify)
@@ -368,7 +370,7 @@ real_find_evsets()
 	}
 
 	// Remove rest of congruent elements
-	list_set_id (result[id], id);
+	list_set_id (evsets[id], id);
 	ptr = can;
 	if (conf.findallcongruent)
 	{
@@ -379,11 +381,11 @@ real_find_evsets()
 			e = list_pop(&ptr);
 			if (conf.ratio > 0.0)
 			{
-				t = tests (result[id], (char*)e, conf.rounds, conf.threshold, conf.ratio, conf.traverse);
+				t = tests (evsets[id], (char*)e, conf.rounds, conf.threshold, conf.ratio, conf.traverse);
 			}
 			else
 			{
-				t = tests_avg (result[id], (char*)e, conf.rounds, conf.threshold, conf.traverse);
+				t = tests_avg (evsets[id], (char*)e, conf.rounds, conf.threshold, conf.traverse);
 			}
 			if (t)
 			{
@@ -402,7 +404,7 @@ real_find_evsets()
 			tmp->next = NULL;
 		}
 		printf ("[+] Found %d more congruent elements from set id=%d\n", count, id);
-		list_concat (&result[id], head);
+		list_concat (&evsets[id], head);
 		ptr = done;
 	}
 
@@ -449,11 +451,11 @@ real_find_evsets()
 			{
 				if (conf.ratio > 0.0)
 				{
-					ret = tests (result[s], victim, conf.rounds, conf.threshold, conf.ratio, conf.traverse);
+					ret = tests (evsets[s], victim, conf.rounds, conf.threshold, conf.ratio, conf.traverse);
 				}
 				else
 				{
-					ret = tests_avg (result[s], victim, conf.rounds, conf.threshold, conf.traverse);
+					ret = tests_avg (evsets[s], victim, conf.rounds, conf.threshold, conf.traverse);
 				}
 			}
 			if (!ret)
@@ -489,14 +491,14 @@ real_find_evsets()
 	while ((conf.findallcolors && id < colors) || (conf.retry && rep < MAX_REPS));
 
 	// Free
-	free (result);
+	free (evsets);
 	munmap (probe, pool_sz);
 	munmap (pool, pool_sz);
 
 	return ret;
 
 	beach:
-	free (result);
+	free (evsets);
 
 	err:
 	munmap (probe, pool_sz);
