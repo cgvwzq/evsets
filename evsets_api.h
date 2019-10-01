@@ -1,7 +1,7 @@
 #ifndef evsets_api_H
 #define evsets_api_H
 
-#include "cache.h"
+#include "public_structs.h"
 
 int find_evsets(struct config *conf);
 
