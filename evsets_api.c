@@ -27,6 +27,7 @@
 struct config conf;
 
 static Elem **evsets = NULL;
+static int num_evsets = 0;
 static int colors = 0;
 static char *probe = NULL;
 static char *pool = NULL;
@@ -148,6 +149,14 @@ close_evsets()
 #ifdef THREAD_COUNTER
 	destroy_counter ();
 #endif /* THREAD_COUNTER */
+}
+
+Elem* get_evset(int id) {
+	if (id >= num_evsets) {
+		return NULL;
+	}
+
+	return evsets[id];
 }
 
 int
@@ -340,6 +349,7 @@ find_evsets()
 			print_list (ptr);
 		}
 		evsets[id] = ptr;
+		num_evsets += 1;
 	}
 
 	if (conf.verify)

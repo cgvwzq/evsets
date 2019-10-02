@@ -5,6 +5,7 @@
 
 int init_evsets(struct config *conf);
 int find_evsets();
+Elem* get_evset(int id);
 void close_evsets();
 
 #endif /* evsets_api_H */
