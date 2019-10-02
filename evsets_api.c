@@ -27,16 +27,17 @@
 struct config conf;
 
 static Elem **evsets = NULL;
-
-int real_find_evsets();
+static int colors = 0;
+static char *probe = NULL;
+static char *pool = NULL;
+static ul pool_sz = 0;
+static ul sz = 0;
 
 int
-find_evsets(struct config *conf_ptr)
+init_evsets(struct config *conf_ptr)
 {
-	int res;
-
-  // save config
-  memcpy(&conf, conf_ptr, sizeof(struct config));
+	// save config
+	memcpy(&conf, conf_ptr, sizeof(struct config));
 
 #ifdef THREAD_COUNTER
 	if (create_counter ())
@@ -45,29 +46,14 @@ find_evsets(struct config *conf_ptr)
 	}
 #endif /* THREAD_COUNTER */
 
-	res = real_find_evsets();
-
-#ifdef THREAD_COUNTER
-	destroy_counter ();
-#endif /* THREAD_COUNTER */
-
-	return res;
-}
-
-int
-real_find_evsets()
-{
-    char *victim = NULL;
-	char *addr = NULL;
-	char *probe = NULL;
-	char *pool = NULL;
-	ul sz = conf.buffer_size * conf.stride;
-	ul pool_sz = 128 << 20;
+	sz = conf.buffer_size * conf.stride;
+	pool_sz = 128 << 20;
 	if (sz > pool_sz)
 	{
 		printf("[!] Error: not enough space\n");
 		return 1;
 	}
+	
 	if (conf.no_huge_pages)
 	{
 		pool = (char*) mmap (NULL, pool_sz, PROT_READ|PROT_WRITE,
@@ -92,28 +78,20 @@ real_find_evsets()
 #endif
 	}
 
-	if (pool == MAP_FAILED || addr == MAP_FAILED || probe == MAP_FAILED)
+	if (pool == MAP_FAILED || probe == MAP_FAILED)
 	{
 		printf("[!] Error: allocation\n");
 		return 1;
 	}
 
-	Elem *ptr = (Elem*)&pool[conf.offset << 6];
-	Elem *can = NULL;
-	victim = &probe[conf.offset << 6];
-	*victim = 0; // touch line
-
 	printf ("[+] %llu MB buffer allocated at %p (%llu blocks)\n",
-			sz >> 20, (void*)ptr, sz/sizeof(Elem));
+			sz >> 20, (void*)&pool[conf.offset << 6], sz/sizeof(Elem));
 
 	if (conf.stride < 64 || conf.stride % 64 != 0)
 	{
 		printf("[!] Error: invalid stride\n");
 		goto err;
 	}
-
-	int seed = time (NULL);
-	srand (seed);
 
 	// Set eviction strategy
 	switch (conf.strategy)
@@ -141,6 +119,49 @@ real_find_evsets()
 			conf.traverse = &traverse_list_simple;
 			break;
 	}
+
+	colors = conf.cache_size / conf.cache_way / conf.stride;
+	evsets = calloc (colors, sizeof(Elem*));
+	if (!evsets)
+	{
+		printf("[!] Error: allocate\n");
+		goto err;
+	}
+
+	return 0;
+
+	err:
+	munmap (probe, pool_sz);
+	munmap (pool, pool_sz);
+#ifdef THREAD_COUNTER
+	destroy_counter ();
+#endif /* THREAD_COUNTER */
+	return 1;
+}
+
+void
+close_evsets()
+{
+	free (evsets);
+	munmap (probe, pool_sz);
+	munmap (pool, pool_sz);
+#ifdef THREAD_COUNTER
+	destroy_counter ();
+#endif /* THREAD_COUNTER */
+}
+
+int
+find_evsets()
+{
+    char *victim = NULL;
+	Elem *ptr = NULL;
+	Elem *can = NULL;
+
+	victim = &probe[conf.offset << 6];
+	*victim = 0; // touch line
+
+	int seed = time (NULL);
+	srand (seed);
 
 	if (conf.calibrate)
 	{
@@ -191,7 +212,7 @@ real_find_evsets()
 		if (list_length (ptr) != conf.buffer_size)
 		{
 			printf("[!] Error: broken list\n");
-			goto err;
+			return 1;
 		}
 	}
 
@@ -205,7 +226,7 @@ real_find_evsets()
 		ret = filter (&ptr, victim, conf.con, conf.noncon, &conf);
 		if (ret && !conf.retry)
 		{
-			goto err;
+			return 1;
 		}
 	}
 
@@ -245,19 +266,12 @@ real_find_evsets()
 		{
 			recheck (ptr, victim, true, &conf);
 		}
-		goto err;
+		return 1;
 	}
 
 	clock_t ts, te;
 
-	int len = 0, colors = conf.cache_size / conf.cache_way / conf.stride;
-	evsets = calloc (colors, sizeof(Elem*));
-	if (!evsets)
-	{
-		printf("[!] Error: allocate\n");
-		goto err;
-	}
-
+	int len = 0;
 	int id = 0;
 	// Iterate over all colors of conf.offset
 	do
@@ -481,7 +495,7 @@ real_find_evsets()
 		else
 		{
 			printf ("[!] Error: couldn't find more victims\n");
-			goto beach;
+			return 1;
 		}
 	}
 
@@ -490,18 +504,5 @@ real_find_evsets()
 	}
 	while ((conf.findallcolors && id < colors) || (conf.retry && rep < MAX_REPS));
 
-	// Free
-	free (evsets);
-	munmap (probe, pool_sz);
-	munmap (pool, pool_sz);
-
 	return ret;
-
-	beach:
-	free (evsets);
-
-	err:
-	munmap (probe, pool_sz);
-	munmap (pool, pool_sz);
-	return 1;
 }

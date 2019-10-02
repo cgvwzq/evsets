@@ -3,6 +3,8 @@
 
 #include "public_structs.h"
 
-int find_evsets(struct config *conf);
+int init_evsets(struct config *conf);
+int find_evsets();
+void close_evsets();
 
 #endif /* evsets_api_H */
