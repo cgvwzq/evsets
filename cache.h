@@ -8,12 +8,6 @@
     #include <pthread.h>
 #endif
 
-#define ALGORITHM_NAIVE 0
-#define ALGORITHM_GROUP 1
-#define ALGORITHM_BINARY 2
-#define ALGORITHM_LINEAR 3
-#define ALGORITHM_NAIVE_OPTIMISTIC 4
-
 #include "private_structs.h"
 
 #ifdef THREAD_COUNTER
