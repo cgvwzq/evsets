@@ -151,6 +151,10 @@ close_evsets()
 #endif /* THREAD_COUNTER */
 }
 
+int get_num_evsets() {
+  return num_evsets;
+}
+
 Elem* get_evset(int id) {
 	if (id >= num_evsets) {
 		return NULL;
