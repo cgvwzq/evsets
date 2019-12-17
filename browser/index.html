@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head>
+<title>Cache Eviction Sets</title>
+<script src="/main.js"></script>
+<script>
+function log(...s){
+	output.innerText += s + '\n';
+}
+function clearLog(){
+	output.innerText = '';
+}
+function getConf() {
+	let f = document.getElementById('config');
+	let b = parseInt(f.b.value), offset = parseInt(f.offset.value), assoc = parseInt(f.assoc.value), stride = parseInt(f.stride.value), conflict = (f.conflict.value === "yes");
+	return {
+		B :			isNaN(b) ? 6000 : b,
+		ASSOC :		isNaN(assoc) ? 16 : assoc,
+		OFFSET :	isNaN(offset) ? 63 : offset,
+		STRIDE :	isNaN(stride) ? 4069 : stride,
+		CONFLICT :	conflict,
+	};
+}
+</script>
+</head>
+<body>
+<h2>JS/Wasm implementation of group-testing reduction for finding minimal eviction sets</h2>
+<p>We implement the threshold group testing based reduction in JS and Wasm for efficiently finding eviction sets of minimal size. For more details see our paper: <a href="https://vwzq.net/papers/evictionsets18.pdf">"Theory and Practice of Finding Eviction Sets</a> (published in SP'2019).</p>
+<p>Tested on <i>Chrome 74.0.3729.75 with V8 7.4</i> with <code>--allow-natives-syntax --experimental-wasm-bigint</code> flags. Natives syntax is only required for validating of resulting JS offsets. Wasm BigInt support will be default soon.</p>
+<p>
+Source code:
+<ul>
+	<li>Source code for validation of JS evictions sets will be published soon</li>
+	<li>Command line tool in C: <a href="https://github.com/cgvwzq/evsets">https://github.com/cgvwzq/evsets</a>
+	<li><a href="https://vwzq.net/slides/2019-rootedcon_extended.pdf">Slides</a> with some details about Wasm implementation</li>
+</ul>
+</p>
+<p><i>(pepe vila on 2019/04/17)</i></p>
+<hr>
+<form id="config" action="#" onsubmit="start(getConf());return false">
+	<label>Blocks: </label><input type="number" name="b" value="6000" min="0"><br>
+	<label>Associativity: </label><input type="number" name="assoc" value="16" min="4"><br>
+	<label>Offset: </label><input type="number" name="offset" value="63" min="0" max="64"><br>
+	<label>Stride: </label><input type="number" name="stride" value="4096" min="64" step="64"><br>
+	<p><label>Find all: </label>
+		<input type="radio" name="conflict" value="yes">Yes</input>
+		<input type="radio" name="conflict" checked value="no">No</input>
+	</p>
+	<p>
+		<input type="submit" value="Start">
+		<input type="button" onclick="clearLog();" value="Clear">
+	</p>
+</form>
+<hr>
+<h3>log:</h3>
+<code id="output" style="display:block; width:80%; word-wrap:break-word;"></code>
+</body>
+</html>
