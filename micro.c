@@ -52,12 +52,19 @@ nbits(ul n)
 ul
 ptos(ul paddr, ul slices)
 {
-	int i = nbits(slices) - 1;
-	ul ret = 0, mask[3] = {0x1b5f575440, 0x2eb5faa880, 0x3cccc93100}; // according to Maurice et al.
-	while (i >= 0 && i < 3)
+	unsigned long long ret = 0;
+	unsigned long long mask[3] = {0x1b5f575440ULL, 0x2eb5faa880ULL, 0x3cccc93100ULL}; // according to Maurice et al.
+	int bits = nbits(slices) - 1;
+	switch (bits)
 	{
-		ret = (ret << 1) | (ul)(count_bits(mask[i] & paddr) % 2);
-		i--;
+		case 3:
+			ret = (ret << 1) | (unsigned long long)(count_bits(mask[2] & paddr) % 2);
+		case 2:
+			ret = (ret << 1) | (unsigned long long)(count_bits(mask[1] & paddr) % 2);
+		case 1:
+			ret = (ret << 1) | (unsigned long long)(count_bits(mask[0] & paddr) % 2);
+		default:
+		break;
 	}
 	return ret;
 }
