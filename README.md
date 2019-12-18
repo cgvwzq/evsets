@@ -2,7 +2,7 @@
 
 This tool allows to find eviction sets using different algorithms and settings.
 
-This is part of the work done for "Theory and Practice of Finding Eviction Sets" paper: https://arxiv.org/pdf/1810.01497.pdf
+This is part of the work done for "Theory and Practice of Finding Eviction Sets" paper: https://www.computer.org/csdl/proceedings-article/sp/2019/666000a695/19skfTIwuZy (or https://vwzq.net/papers/evictionsets18.pdf)
 
 `Warning: this is a proof-of-concept, only useful for testing your system and interacting with the cache. Use under your own risk.`
 
