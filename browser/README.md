@@ -2,7 +2,7 @@
 
 We implement the threshold group testing based reduction in JS and Wasm for efficiently finding eviction sets of minimal size. For more details check our paper.
 
-ested on *Chrome 74.0.3729.75 with V8 7.4* with `--allow-natives-syntax --experimental-wasm-bigint` flags. Natives syntax is only required for validating of resulting JS offsets. Wasm BigInt should be supported will be default soon.
+Tested on *Chrome 74.0.3729.75 with V8 7.4* with `--allow-natives-syntax --experimental-wasm-bigint` flags. Natives syntax is only required for validating of resulting JS offsets. Wasm BigInt should be supported will be default soon.
 
 Check my slides for more details about the Wasm implementation: https://vwzq.net/slides/2019-rootedcon_extended.pdf
 
