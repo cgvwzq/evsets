@@ -54,8 +54,8 @@ init_evsets(struct config *conf_ptr)
 		printf("[!] Error: not enough space\n");
 		return 1;
 	}
-	
-	if (conf.no_huge_pages)
+
+	if (conf.flags & FLAG_NOHUGEPAGES)
 	{
 		pool = (char*) mmap (NULL, pool_sz, PROT_READ|PROT_WRITE,
 						MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
@@ -97,25 +97,25 @@ init_evsets(struct config *conf_ptr)
 	// Set eviction strategy
 	switch (conf.strategy)
 	{
-		case 0:
+		case STRATEGY_HASWELL:
 			conf.traverse = &traverse_list_haswell;
 			break;
-		case 1:
+		case STRATEGY_SKYLAKE:
 			conf.traverse = &traverse_list_skylake;
 			break;
-		case 3:
+		case STRATEGY_ASMSKY:
 			conf.traverse = &traverse_list_asm_skylake;
 			break;
-		case 4:
+		case STRATEGY_ASMHAS:
 			conf.traverse = &traverse_list_asm_haswell;
 			break;
-		case 5:
+		case STRATEGY_ASM:
 			conf.traverse = &traverse_list_asm_simple;
 			break;
-		case 10:
+		case STRATEGY_RRIP:
 			conf.traverse = &traverse_list_rrip;
 			break;
-		case 2:
+		case STRATEGY_SIMPLE:
 		default:
 			conf.traverse = &traverse_list_simple;
 			break;
@@ -176,7 +176,7 @@ find_evsets()
 	int seed = time (NULL);
 	srand (seed);
 
-	if (conf.calibrate)
+	if (conf.flags & FLAG_CALIBRATE)
 	{
 		conf.threshold = calibrate (victim, &conf);
 		printf("[+] Calibrated Threshold = %d\n", conf.threshold);
@@ -206,7 +206,7 @@ find_evsets()
 	initialize_list (ptr, pool_sz, conf.offset);
 
 	// Conflict set incompatible with ANY case (don't needed)
-	if (conf.conflictset && (conf.algorithm != ALGORITHM_LINEAR))
+	if ((conf.flags & FLAG_CONFLICTSET) && (conf.algorithm != ALGORITHM_LINEAR))
 	{
 		pick_n_random_from_list (ptr, conf.stride, pool_sz, conf.offset, conf.buffer_size);
 		generate_conflict_set (&ptr, &can);
@@ -230,14 +230,13 @@ find_evsets()
 	}
 
 	int ret = 0;
-	if (conf.debug)
+	if (conf.flags & FLAG_DEBUG)
 	{
-		conf.verify = true;
-		conf.findallcolors = false;
-		conf.findallcongruent = false;
+		conf.flags |= FLAG_VERIFY;
+		conf.flags &= ~(FLAG_FINDALLCOLORS | FLAG_FINDALLCONGRUENT);
 		printf ("[+] Filter: %d congruent, %d non-congruent addresses\n", conf.con, conf.noncon);
 		ret = filter (&ptr, victim, conf.con, conf.noncon, &conf);
-		if (ret && !conf.retry)
+		if (ret && (conf.flags & FLAG_RETRY))
 		{
 			return 1;
 		}
@@ -266,7 +265,7 @@ find_evsets()
 	else
 	{
 		printf ("[!] Error: invalid candidate set\n");
-		if (conf.retry && rep < MAX_REPS)
+		if ((conf.flags & FLAG_RETRY) && rep < MAX_REPS)
 		{
 			rep++;
 			goto pick;
@@ -275,7 +274,7 @@ find_evsets()
 		{
 			printf ("[!] Error: exceeded max repetitions\n");
 		}
-		if (conf.verify)
+		if (conf.flags & FLAG_VERIFY)
 		{
 			recheck (ptr, victim, true, &conf);
 		}
@@ -356,19 +355,19 @@ find_evsets()
 		num_evsets += 1;
 	}
 
-	if (conf.verify)
+	if (conf.flags & FLAG_VERIFY)
 	{
 		recheck(ptr, victim, ret, &conf);
 	}
 
-	if (ret && conf.retry)
+	if (ret && (conf.flags & FLAG_RETRY))
 	{
 		if (rep < MAX_REPS)
 		{
 			list_concat (&ptr, can);
 			can = NULL;
 			rep++;
-			if (!conf.conflictset && !conf.findallcolors)
+			if (!(conf.flags & FLAG_CONFLICTSET) && !(conf.flags & FLAG_FINDALLCOLORS))
 			{
 				// select a new initial set
 				printf ("[!] Error: repeat, pick a new set\n");
@@ -400,7 +399,7 @@ find_evsets()
 	// Remove rest of congruent elements
 	list_set_id (evsets[id], id);
 	ptr = can;
-	if (conf.findallcongruent)
+	if (conf.flags & FLAG_FINDALLCONGRUENT)
 	{
 		Elem *e = NULL, *head = NULL, *done = NULL, *tmp = NULL;
 		int count = 0, t = 0;
@@ -436,15 +435,15 @@ find_evsets()
 		ptr = done;
 	}
 
-	if (!conf.findallcolors)
+	if (!(conf.flags & FLAG_FINDALLCOLORS))
 	{
 		break;
 	}
 	printf ("----------------------\n");
 	id = id + 1;
 	if (id == colors || !ptr ||
-			(conf.conflictset && !victim) ||
-			(!conf.conflictset && victim >= probe + pool_sz - conf.stride))
+			((conf.flags & FLAG_CONFLICTSET) && !victim) ||
+			(!(conf.flags & FLAG_CONFLICTSET) && victim >= probe + pool_sz - conf.stride))
 	{
 		printf ("[+] Found all eviction sets in buffer\n");
 		break;
@@ -457,7 +456,7 @@ find_evsets()
 		int s = 0, ret = 0, ret2 = 0;
 		do
 		{
-			if (!conf.conflictset)
+			if (!(conf.flags & FLAG_CONFLICTSET))
 			{
 				victim += conf.stride;
 				*victim = 0;
@@ -468,8 +467,8 @@ find_evsets()
 			}
 
 			// Check again. Better reorganize this mess.
-			if ((conf.conflictset && !victim) ||
-				(!conf.conflictset && victim >= probe + pool_sz - conf.stride))
+			if (((conf.flags & FLAG_CONFLICTSET) && !victim) ||
+				(!(conf.flags & FLAG_CONFLICTSET) && victim >= probe + pool_sz - conf.stride))
 			{
 				break;
 			}
@@ -499,8 +498,8 @@ find_evsets()
 				}
 			}
 		}
-		while ((list_length (ptr) > conf.cache_way) && !ret2 && ((conf.conflictset && victim) ||
-				(!conf.conflictset && (victim < (probe + pool_sz - conf.stride)))));
+		while ((list_length (ptr) > conf.cache_way) && !ret2 && (((conf.flags & FLAG_CONFLICTSET) && victim) ||
+				(!(conf.flags & FLAG_CONFLICTSET) && (victim < (probe + pool_sz - conf.stride)))));
 
 		if (ret2)
 		{
@@ -516,7 +515,7 @@ find_evsets()
 	can = NULL;
 
 	}
-	while ((conf.findallcolors && id < colors) || (conf.retry && rep < MAX_REPS));
+	while (((conf.flags & FLAG_FINDALLCOLORS) && id < colors) || ((conf.flags & FLAG_RETRY) && rep < MAX_REPS));
 
 	return ret;
 }

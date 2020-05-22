@@ -102,7 +102,7 @@ recheck(Elem *ptr, char *victim, bool err, struct config *conf)
 			{
 				printf(" - victim pfn: 0x%llx, cache set: 0x%llx, slice: ",
 						vpaddr, vcacheset);
-                if (!conf->ignoreslice)
+                if (!(conf->flags & FLAG_IGNORESLICE))
                 {
                     printf("0x%llx\n", vslice);
                 }
@@ -122,7 +122,7 @@ recheck(Elem *ptr, char *victim, bool err, struct config *conf)
 		{
 			printf(" - element pfn: 0x%llx, cache set: 0x%llx, slice: ",
 					paddr, cacheset);
-			if (!conf->ignoreslice)
+			if (!(conf->flags & FLAG_IGNORESLICE))
 			{
 				printf("0x%llx\n", slice);
 			}
@@ -132,7 +132,7 @@ recheck(Elem *ptr, char *victim, bool err, struct config *conf)
 			}
 		}
 		ptr = ptr->next;
-		if (vcacheset == cacheset && ((vslice == slice) || conf->ignoreslice))
+		if (vcacheset == cacheset && ((vslice == slice) || (conf->flags & FLAG_IGNORESLICE)))
 		{
 			num++;
 		}
@@ -169,7 +169,7 @@ filter(Elem **ptr, char *victim, int n, int m, struct config *conf)
 		paddr = vtop ((ul)tmp);
 		slice = ptos (paddr, conf->cache_slices);
 		cacheset = (paddr >> LINE_BITS) & (cache_sets - 1);
-		if (vcacheset == cacheset && ((vslice == slice) || conf->ignoreslice))
+		if (vcacheset == cacheset && ((vslice == slice) || (conf->flags & FLAG_IGNORESLICE)))
 		{
 			if (n > 0)
 			{

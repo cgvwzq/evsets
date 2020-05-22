@@ -19,30 +19,20 @@
 #include "evsets_api.h"
 
 struct config configuration = {
-	.rounds = 200,
+	.rounds = 10,
 	.cal_rounds = 1000000,
 	.stride = 4096,
 	.cache_size = 6 << 20,
 	.cache_way = 12,
 	.cache_slices = 4,
-	.verbose = false,
-	.no_huge_pages = false,
-	.calibrate = true,
 	.algorithm = ALGORITHM_GROUP,
 	.strategy = 2,
 	.offset = 0,
-	.retry = false,
-	.backtracking = false,
-	.verify = false,
-	.ignoreslice = false,
-	.debug = false,
 	.con = 0,
 	.noncon = 0,
 	.ratio = -1.0,
 	.buffer_size = 3072,
-	.findallcolors = false,
-	.findallcongruent = false,
-	.conflictset = false,
+	.flags = FLAG_CALIBRATE,
 };
 
 void
@@ -69,12 +59,14 @@ usage(char *name)
 		"\t\t-a n|o|g|l\tsearch algorithm (default: 'g')\n"
 		"\t\t-e 0|1|2|3|4\teviction strategy: 0-haswell, 1-skylake, 2-simple (default: 2)\n"
 		"\t\t-C N\t\tpage offset (default: 0)\n"
-		"\t\t-r N\t\tnumer of rounds per test (default: 200)\n"
+		"\t\t-r N\t\tnumer of rounds per test (default: 10)\n"
 		"\t\t-q N\t\tratio of success for passing a test (default: disabled)\n"
 		"\t\t-h\t\tshow this help\n\n"
-		"\tExample:\n\t\t%s -b 3000 -c 6 -s 8 -a g -n 12 -o 4096 -a g -e 2 -C 0 -t 85 --verbose --retry --backtracking\n"
+		"\tExample:\n\t\t%s -b 3000 -c 6 -s 8 -a g -n 12 -o 4096 -e 2 -C 0 -t 85 --verbose --retry --backtracking\n"
 	"\n", name, name);
 }
+
+#define KEY	0xd34dc0d3
 
 int
 main(int argc, char **argv)
@@ -83,16 +75,16 @@ main(int argc, char **argv)
 
 	static struct option long_options[] =
 	{
-		{"nohugepages",		no_argument, &configuration.no_huge_pages, 1},
-		{"retry", 			no_argument, &configuration.retry, 1},
-		{"backtracking",	no_argument, &configuration.backtracking, 1},
-		{"verbose",			no_argument, &configuration.verbose, 1},
-		{"verify",			no_argument, &configuration.verify, 1},
-		{"debug",			no_argument, &configuration.debug, 1},
-		{"ignoreslice",		no_argument, &configuration.ignoreslice, 1},
-		{"findallcolors",	no_argument, &configuration.findallcolors, 1},
-		{"findallcongruent",no_argument, &configuration.findallcongruent, 1},
-		{"conflictset",		no_argument, &configuration.conflictset, 1},
+		{"nohugepages",		no_argument, 0, FLAG_NOHUGEPAGES ^ KEY},
+		{"retry", 			no_argument, 0, FLAG_RETRY ^ KEY},
+		{"backtracking",	no_argument, 0, FLAG_BACKTRACKING ^ KEY},
+		{"verbose",			no_argument, 0, FLAG_VERBOSE ^ KEY},
+		{"verify",			no_argument, 0, FLAG_VERIFY ^ KEY},
+		{"debug",			no_argument, 0, FLAG_DEBUG ^ KEY},
+		{"ignoreslice",		no_argument, 0, FLAG_IGNORESLICE ^ KEY},
+		{"findallcolors",	no_argument, 0, FLAG_FINDALLCOLORS ^ KEY},
+		{"findallcongruent",no_argument, 0, FLAG_FINDALLCONGRUENT ^ KEY},
+		{"conflictset",		no_argument, 0, FLAG_CONFLICTSET ^ KEY},
 		{"buffer-size",		no_argument, 0, 'b'},
 		{"threshold",		no_argument, 0, 't'},
 		{"ratio",			no_argument, 0, 'q'},
@@ -121,7 +113,7 @@ main(int argc, char **argv)
 				configuration.buffer_size = atoi(optarg);
 				break;
 			case 't' :
-				configuration.calibrate = false;
+				configuration.flags &= ~FLAG_CALIBRATE;
 				configuration.threshold = atoi(optarg);
 				break;
 			case 'q' :
@@ -193,7 +185,8 @@ main(int argc, char **argv)
 				usage(argv[0]);
 				return 0;
 			default:
-				return 1;
+				/* encoded flag to avoid collision with ascii letters */
+				configuration.flags |= (option ^ KEY);
 		}
 	}
 

@@ -1,6 +1,7 @@
 #include "cache.h"
 #include "micro.h"
 #include "hist_utils.h"
+#include "public_structs.h"
 
 #ifdef THREAD_COUNTER
 	#include <pthread.h>
@@ -360,7 +361,7 @@ calibrate(char *victim, struct config *conf)
 
 	ret = hist_min (flushed, hsz);
 
-	if (conf->verbose)
+	if (conf->flags & FLAG_VERBOSE)
 	{
 		printf("\tflushed: min %d, mode %d, avg %f, max %d, std %.02f, q %d (%.02f)\n",
 			hist_min (flushed, hsz), hist_mode(flushed, hsz),

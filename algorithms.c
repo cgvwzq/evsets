@@ -1,6 +1,7 @@
 #include "algorithms.h"
 #include "list_utils.h"
 #include "utils.h"
+#include "public_structs.h"
 #include <math.h>
 #include <stdio.h>
 
@@ -45,12 +46,12 @@ naive_eviction(Elem **ptr, Elem **can, char *victim)
 			if (fail)
 			{
 				// step back in decision binary tree by readding previous candidate
-				if (!conf.backtracking || repeat > MAX_REPS_BACK)
+				if (!(conf.flags & FLAG_BACKTRACKING) || repeat > MAX_REPS_BACK)
 				{
 					break;
 				}
 				repeat++;
-				if (conf.verbose)
+				if (conf.flags & FLAG_VERBOSE)
 				{
 					printf("\tbacktrack one step\n");
 				}
@@ -61,13 +62,13 @@ naive_eviction(Elem **ptr, Elem **can, char *victim)
 		len = list_length (*ptr);
 		cans = list_length (*can);
 
-		if (conf.verbose && !(i++ % 300))
+		if ((conf.flags & FLAG_VERBOSE) && !(i++ % 300))
 		{
 			printf("\teset=%d, removed=%d (%d)\n", len, cans, len+cans);
 		}
 	}
 
-	if (conf.verbose)
+	if (conf.flags & FLAG_VERBOSE)
 	{
 		printf("\teset=%d, removed=%d (%d)\n", len, cans, len+cans);
 	}
@@ -136,13 +137,13 @@ naive_eviction_optimistic(Elem **ptr, Elem **can, char *victim)
 		len = list_length (*ptr);
 		cans = list_length (*can);
 
-		if (conf.verbose && !(i++ % 300))
+		if ((conf.flags & FLAG_VERBOSE) && !(i++ % 300))
 		{
 			printf("\teset=%d, removed=%d (%d)\n", len, cans, len+cans);
 		}
 	}
 
-	if (conf.verbose)
+	if (conf.flags & FLAG_VERBOSE)
 	{
 		printf("\teset=%d, removed=%d (%d)\n", len, cans, len+cans);
 	}
@@ -243,7 +244,7 @@ gt_eviction(Elem **ptr, Elem **can, char *victim)
 				cans += list_length (back[l]); // add length of removed chunk
 				len = list_length (*ptr);
 
-				if (conf.verbose)
+				if (conf.flags & FLAG_VERBOSE)
 				{
 					printf("\tlvl=%d: eset=%d, removed=%d (%d)\n", l, len, cans, len+cans);
 				}
@@ -270,12 +271,12 @@ gt_eviction(Elem **ptr, Elem **can, char *victim)
 
 		break;
 		mycont:
-			if (conf.verbose)
+			if (conf.flags & FLAG_VERBOSE)
 			{
 				printf("\tbacktracking step\n");
 			}
 
-	} while (l > 0 && repeat++ < MAX_REPS_BACK && conf.backtracking);
+	} while (l > 0 && repeat++ < MAX_REPS_BACK && (conf.flags & FLAG_BACKTRACKING));
 
 	// recover discarded elements
 	for (i = 0; i < h * 2; i++)
@@ -371,7 +372,7 @@ gt_eviction_any(Elem **ptr, Elem **can)
 				cans += list_length (back[l]); // add length of removed chunk
 				len = list_length (*ptr);
 
-				if (conf.verbose)
+				if (conf.flags & FLAG_VERBOSE)
 				{
 					printf("\tlvl=%d: eset=%d, removed=%d (%d)\n", l, len, cans, len+cans);
 				}
@@ -397,13 +398,13 @@ gt_eviction_any(Elem **ptr, Elem **can)
 
 		break;
 		mycont:
-			if (conf.verbose)
+			if (conf.flags & FLAG_VERBOSE)
 			{
 				printf("\tbacktracking step\n");
 			}
 
 	}
-	while (l > 0 && repeat++ < MAX_REPS_BACK && conf.backtracking);
+	while (l > 0 && repeat++ < MAX_REPS_BACK && (conf.flags & FLAG_BACKTRACKING));
 
 	// recover discarded elements
 	for (i = 0; i < h * 2; i++)
@@ -470,7 +471,7 @@ binary_eviction(Elem **ptr, Elem **can, char *victim)
 				lastn = pivot;
 				x = 2 * x + 1;
 			}
-			if (conf.verbose)
+			if (conf.flags & FLAG_VERBOSE)
 			{
 				printf("\telem==%d eset=%d res=%d (%d)\n", count, len, cans, len+cans);
 			}

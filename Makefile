@@ -15,7 +15,7 @@ all: main.c libevsets.so
 libevsets.so: ${OBJS}
 	${CC} ${CFLAGS} -shared ${LDFLAGS} $^ -o libevsets.so
 
-%.o: %.c
+%.o: %.c %.h public_structs.h private_structs.h
 	${CC} ${CFLAGS} -c -o $@ $<
 
 counter: CFLAGS += -DTHREAD_COUNTER
