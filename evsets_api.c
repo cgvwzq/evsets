@@ -284,7 +284,7 @@ find_evsets()
 	clock_t ts, te;
 
 	int len = 0;
-	int id = 0;
+	int id = num_evsets;
 	// Iterate over all colors of conf.offset
 	do
 	{
