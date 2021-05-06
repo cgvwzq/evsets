@@ -2,7 +2,7 @@
 
 We implement the threshold group testing based reduction in JS and Wasm for efficiently finding eviction sets of minimal size. For more details check our paper.
 
-Tested on _Version 90.0.4430.93 (Official Build) (64-bit)_ with `--allow-natives-syntax` flags. Natives syntax is only required for validating of resulting JS offsets.
+Originally ested on _Chrome 74.0.3729.75 with V8 7.4_ with `--allow-natives-syntax` flags, but should also work on more recent versions of Chrome. Natives syntax is only required for validating of resulting JS offsets.
 
 Check my slides for more details about the Wasm implementation: https://vwzq.net/slides/2019-rootedcon_extended.pdf
 
