@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 
 # Run:
-# $ google-chrome-beta --user-data-dir=/tmp/tmp.u9lo18kaTh --js-flags='--allow-natives-syntax --experimental-wasm-bigint' http://localhost:8000/ | ./verify_addr.sh
+# $ google-chrome --user-data-dir=/tmp/tmp.u9lo18kaTh --js-flags='--allow-natives-syntax' http://localhost:8000/ | ./verify_addr.sh
 #
 # Dependencies:
 # --allow-natives-stynax only used to verify offsets via command line
-# --experimental-wasm-bigint will be soon by default
 # pmap used to find offset of shared buffer (128*1024 KB)
 # gcc virt_to_phys.c -o virt_to_phys (used to translate virtual to physical, get slice and index set)
 
@@ -21,7 +20,7 @@ while true; do
 
 	# find right pid checking large allocated buffer
 	base=""
-	pids=$(ps aux | grep 'chrome-beta/chrome --type=renderer' | awk '{print $2}')
+	pids=$(ps aux | grep 'chrome/chrome --type=renderer' | awk '{print $2}')
 	for p in $pids; do
 		bases=$(pmap $p | grep '131072K' | awk '{print $1}')
 		if [ ! -z "$bases" ]; then
@@ -50,10 +49,10 @@ while true; do
 		if [[ $line =~ "Creating conflict set..." ]]; then
 			conflict=1
 		elif [[ $line =~ "Victim addr:" ]]; then
-			vic="$(echo $line | cut -d: -f 3 | cut -d\> -f 1)"
+			vic="$(echo $line | cut -d: -f 3 | cut -d\> -f 1 | cut -d\" -f 1)"
 			vic="$(printf '%x ' $(($base+$vic)))"
 		elif [[ $line =~ "Eviction set:" ]]; then
-			addresses="$(echo $line | cut -d: -f 3 | cut -d\> -f 1 | tr ',' ' ')"
+			addresses="$(echo $line | cut -d: -f 3 | cut -d\> -f 1 | cut -d\" -f 1 | tr ',' ' ')"
 			vaddrs=$(for o in $addresses; do printf '%x ' $(($base+$o)); done)
 			echo "Physical addresses:"
 			# needs sudo to work

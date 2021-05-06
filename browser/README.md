@@ -2,7 +2,7 @@
 
 We implement the threshold group testing based reduction in JS and Wasm for efficiently finding eviction sets of minimal size. For more details check our paper.
 
-Tested on *Chrome 74.0.3729.75 with V8 7.4* with `--allow-natives-syntax --experimental-wasm-bigint` flags. Natives syntax is only required for validating of resulting JS offsets. Wasm BigInt should be supported will be default soon.
+Originally tested on _Chrome 74.0.3729.75 with V8 7.4_ with `--allow-natives-syntax` flags, but should also work on more recent versions of Chrome. Natives syntax is only required for validating of resulting JS offsets.
 
 Check my slides for more details about the Wasm implementation: https://vwzq.net/slides/2019-rootedcon_extended.pdf
 
@@ -25,11 +25,11 @@ $ clang virt_to_phys.c -o virt_to_phys
 Launch web server in current directory:
 
 ```
-$ python3 -m http.server --bind localhost
+$ python3 server.py
 $ ./run.sh
 ```
 
-You might need to modify `run.sh` with the right path to chrome.
+You might need to modify `run.sh` with the right path to chrome. Also make sure to visit `http://localhost:8000` and **not** `http://0.0.0.0:8000`, as cross-origin isolation is only enabled on `localhost` or when using HTTPS.
 
 ## Run
 
